@@ -26,6 +26,8 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Build
+        env:
+          CGO_ENABLED: 0
         run: go build -v .
 
       - name: Install KO
@@ -35,6 +37,7 @@ jobs:
       - name: Publish docker image
         env:
           KO_DOCKER_REPO: ghcr.io/${{ github.repository_owner }}
+          CGO_ENABLED: 0
         run: |
           ./ko login ghcr.io --username $GITHUB_REPOSITORY_OWNER --password ${{ secrets.GITHUB_TOKEN }}
           ./ko build -B --tags ${{ steps.version.outputs.tag }} .
