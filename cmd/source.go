@@ -12,9 +12,9 @@ import (
 
 type SourceServer struct {
 	running      bool
-	parallelism  int
+	concurrency  int
 	notifyChan   chan bool
-	soakAddr     string
+	soakHost     string
 	mux          sync.Mutex
 	successCount float64
 	failedCount  float64
@@ -22,19 +22,19 @@ type SourceServer struct {
 	basePath     string
 }
 
-func NewSourceServer(soakAddr string, basePath string, parallelism int, maxCons int) *SourceServer {
+func NewSourceServer(soakHost string, basePath string, concurrency int, maxCons int) *SourceServer {
 	return &SourceServer{
 		running:     false,
-		parallelism: parallelism,
+		concurrency: concurrency,
 		notifyChan:  make(chan bool),
-		soakAddr:    soakAddr,
+		soakHost:    soakHost,
 		maxCons:     maxCons,
 		basePath:    basePath,
 	}
 }
 
 func (s *SourceServer) StartSourceServer(port string) {
-	log.Printf("Starting source server listening on port %s with %d concurrent", port, s.parallelism)
+	log.Printf("Starting source server listening on port %s with %d concurrent", port, s.concurrency)
 	http.HandleFunc("/start", s.startHandler)
 	http.HandleFunc("/stop", s.stopHandler)
 	http.HandleFunc("/status", s.statusHandler)
@@ -67,13 +67,13 @@ func (s *SourceServer) startHandler(w http.ResponseWriter, _ *http.Request) {
 				log.Println("Stop notification received")
 				return
 			default:
-				guard := make(chan struct{}, s.parallelism)
+				guard := make(chan struct{}, s.concurrency)
 				wg := &sync.WaitGroup{}
-				for i := 0; i < s.parallelism; i++ {
+				for i := 0; i < s.concurrency; i++ {
 					wg.Add(1)
 					guard <- struct{}{}
 					go func(n int) {
-						resp, err := client.Get(s.soakAddr + "/ping")
+						resp, err := client.Get(fmt.Sprintf("%s/%s/ping", s.soakHost, s.basePath))
 						if err != nil {
 							log.Printf("Error making request: %s", err)
 							s.incFailed()

@@ -12,11 +12,11 @@ func main() {
 	var port string
 	var concurrency int
 	var maxCons int
-	var address string
+	var host string
 	var basePath string
 	flag.StringVar(&port, "port", "8080", "Port to listen on")
 	flag.IntVar(&concurrency, "concurrency", 10, "Number of concurrent requests to make")
-	flag.StringVar(&address, "address", "http://localhost:8080", "Websoaker address for the sink server")
+	flag.StringVar(&host, "address", "http://localhost:8080", "Websoaker address for the sink server")
 	flag.StringVar(&basePath, "basePath", "", "Base path for the sink ping endpoint")
 	flag.IntVar(&maxCons, "maxCons", 1000, "Max connections per host")
 	flag.Parse()
@@ -27,7 +27,7 @@ func main() {
 	}
 	switch args[1] {
 	case "source":
-		sourceServer := cmd.NewSourceServer(address, basePath, concurrency, maxCons)
+		sourceServer := cmd.NewSourceServer(host, basePath, concurrency, maxCons)
 		sourceServer.StartSourceServer(port)
 	case "sink":
 		sinkServer := cmd.SinkServer{}

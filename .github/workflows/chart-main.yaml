@@ -1,0 +1,26 @@
+name: Build latest from main branch
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - charts/**
+      - .github/workflows/chart-main.yaml
+
+jobs:
+  publish_github:
+    name: Build latest and publish to ghcr
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4.2.0
+
+      - name: Publish helm oci image
+        run: |
+          heclm package charts --vesrion 0.0.0
+          helm registry login -u ${{ secrets.ghcr_username }} -p ${{ secrets.ghcr_token }} ghcr.io
+          helm push websoaker-0.0.0.tgz ghcr.io/${{ github.repository }}/websoaker-chart:latest

@@ -1,0 +1,39 @@
+{{- if .Values.ingressRoute.enabled -}}
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "..fullname" . }}
+  labels:
+    {{- include "..labels" . | nindent 4 }}
+  {{- with .Values.ingressRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  entryPoints:
+  {{- range .Values.ingressRoute.entryPoints }}
+    - {{ . }}
+  {{- end }}
+  routes:
+  {{- range .Values.ingressRoute.routes }}
+    - match: {{ .match }}
+      kind: {{ .kind }}
+    {{- if .priority }}
+      priority: {{ .priority }}
+    {{- end }}
+      services:
+        - name: {{ include "..fullname" $ }}
+          port: {{ $.Values.service.port }}
+    {{- if or .middlewares $.Values.linkerd.enabled }}
+      middlewares:
+    {{- if .middlewares }}
+    {{- range .middlewares}}
+        - name: {{ .name }}
+    {{- end }}
+    {{- end }}
+    {{- if $.Values.linkerd.enabled }}
+        - name: {{ include "..linkerd-middleware-name" $ }}
+    {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}

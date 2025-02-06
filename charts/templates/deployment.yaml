@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "..fullname" . }}
+  labels:
+    {{- include "..labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "..selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- if .Values.linkerd.enabled }}
+        linkerd.io/inject: enabled
+        config.linkerd.io/skip-outbound-ports: '443'
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "..labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "..serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: soaker
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.soaker.source }}
+          args:
+            - "source"
+            - "--port"
+            - {{ .Values.service.port | quote }}
+            {{- if .Values.soaker.source.host }}
+            - "--address"
+            - "{{ .Values.soaker.source.host }}"
+            {{- end }}
+            {{- if .Values.soaker.source.concurrency }}
+            - "--concurrency"
+            - "{{ .Values.soaker.source.concurrency | quote }}"
+            {{- end }}
+            {{- if .Values.soaker.source.basePath }}
+            - "--basePath"
+            - "{{ .Values.soaker.source.basePath }}"
+            {{- end }}
+            {{- if .Values.soaker.source.maxCons }}
+            - "--maxCons"
+            - "{{ .Values.soaker.source.maxCons | quote }}"
+            {{- end }}
+          {{- else }}
+          args:
+            - "sink"
+            - "--port"
+            - {{ .Values.service.port | quote }}
+          {{- end }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: http
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
