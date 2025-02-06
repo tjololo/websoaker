@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/tjololo/websoaker/internal/server"
+	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -17,14 +18,18 @@ type SourceServer struct {
 	mux          sync.Mutex
 	successCount float64
 	failedCount  float64
+	maxCons      int
+	basePath     string
 }
 
-func NewSourceServer(soakAddr string, parallelism int) *SourceServer {
+func NewSourceServer(soakAddr string, basePath string, parallelism int, maxCons int) *SourceServer {
 	return &SourceServer{
 		running:     false,
 		parallelism: parallelism,
 		notifyChan:  make(chan bool),
 		soakAddr:    soakAddr,
+		maxCons:     maxCons,
+		basePath:    basePath,
 	}
 }
 
@@ -46,13 +51,19 @@ func (s *SourceServer) startHandler(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	s.running = true
+	transport := &http.Transport{
+		MaxConnsPerHost:     s.maxCons,
+		MaxIdleConnsPerHost: s.maxCons,
+	}
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   5 * time.Second,
+	}
 	go func() {
-		client := &http.Client{
-			Timeout: 5 * time.Second,
-		}
 		for {
 			select {
 			case <-s.notifyChan:
+				s.running = false
 				log.Println("Stop notification received")
 				return
 			default:
@@ -67,9 +78,13 @@ func (s *SourceServer) startHandler(w http.ResponseWriter, _ *http.Request) {
 							log.Printf("Error making request: %s", err)
 							s.incFailed()
 						} else {
-							closeErr := resp.Body.Close()
-							if closeErr != nil {
-								log.Printf("Error closing response body: %s", closeErr)
+							_, httpErr := io.Copy(io.Discard, resp.Body)
+							if httpErr != nil {
+								log.Printf("Error reading response body: %s", httpErr)
+							}
+							httpErr = resp.Body.Close()
+							if httpErr != nil {
+								log.Printf("Error closing response body: %s", httpErr)
 							}
 							s.incSuccess()
 						}
@@ -89,7 +104,7 @@ func (s *SourceServer) startHandler(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-func (s *SourceServer) stopHandler(w http.ResponseWriter, r *http.Request) {
+func (s *SourceServer) stopHandler(w http.ResponseWriter, _ *http.Request) {
 	s.notifyChan <- true
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -99,7 +114,7 @@ func (s *SourceServer) stopHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *SourceServer) statusHandler(w http.ResponseWriter, r *http.Request) {
+func (s *SourceServer) statusHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte(fmt.Sprintf("{\"successCount\": \"%.0f\", \"failedCount\": \"%.0f\"}", s.successCount, s.failedCount)))
