@@ -51,19 +51,19 @@ spec:
             - {{ .Values.service.port | quote }}
             {{- if .Values.soaker.source.host }}
             - "--address"
-            - "{{ .Values.soaker.source.host }}"
+            - {{ .Values.soaker.source.host }}
             {{- end }}
             {{- if .Values.soaker.source.concurrency }}
             - "--concurrency"
-            - "{{ .Values.soaker.source.concurrency | quote }}"
+            - {{ .Values.soaker.source.concurrency | quote }}
             {{- end }}
             {{- if .Values.soaker.source.basePath }}
             - "--basePath"
-            - "{{ .Values.soaker.source.basePath }}"
+            - {{ .Values.soaker.source.basePath }}
             {{- end }}
             {{- if .Values.soaker.source.maxCons }}
             - "--maxCons"
-            - "{{ .Values.soaker.source.maxCons | quote }}"
+            - {{ .Values.soaker.source.maxCons | quote }}
             {{- end }}
           {{- else }}
           args:
