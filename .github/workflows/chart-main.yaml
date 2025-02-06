@@ -21,6 +21,6 @@ jobs:
 
       - name: Publish helm oci image
         run: |
-          heclm package charts --vesrion 0.0.0
+          helm package charts --vesrion 0.0.0
           helm registry login -u ${{ secrets.ghcr_username }} -p ${{ secrets.ghcr_token }} ghcr.io
           helm push websoaker-0.0.0.tgz ghcr.io/${{ github.repository }}/websoaker-chart:latest
