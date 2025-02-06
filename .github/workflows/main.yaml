@@ -1,0 +1,44 @@
+name: Build latest from main branch
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - main.go
+      - go.mod
+      - go.sum
+      - cmd/**
+      - internal/**
+      - .github/workflows/main.yaml
+
+env:
+  ko_version: 0.17.1
+
+jobs:
+  publish_github:
+    name: Build latest and publish to ghcr
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Build
+        run: go build -v .
+
+      - name: Install KO
+        run: |
+          curl -L https://github.com/google/ko/releases/download/v${{ env.ko_version }}/ko_${{ env.ko_version }}_Linux_x86_64.tar.gz | tar xzf - ko
+          chmod +x ./ko
+      - name: Publish docker image
+        env:
+          KO_DOCKER_REPO: ghcr.io/${{ github.repository_owner }}
+        run: |
+          ./ko login ghcr.io --username $GITHUB_REPOSITORY_OWNER --password ${{ secrets.GITHUB_TOKEN }}
+          ./ko build -B .
