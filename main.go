@@ -20,6 +20,7 @@ func main() {
 	flag.StringVar(&basePath, "basePath", "", "Base path for the sink ping endpoint")
 	flag.IntVar(&maxCons, "maxCons", 1000, "Max connections per host")
 	flag.Parse()
+
 	args := os.Args
 	if len(args) < 2 {
 		log.Fatal("Usage: websoaker source|sink")
