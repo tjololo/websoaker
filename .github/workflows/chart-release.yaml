@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Get version from tags
         id: version
-        run: echo "tag=${GITHUB_REF/refs\/tags\v//}" >> $GITHUB_OUTPUT
+        run: echo "tag=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_OUTPUT
       - name: Check out code into the Go module directory
         uses: actions/checkout@v4
       - uses: azure/setup-helm@v4.2.0
