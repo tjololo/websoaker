@@ -1,11 +1,8 @@
-name: Publish latest chart from main branch
+name: Build chart release
 on:
   push:
-    branches:
-      - main
-    paths:
-      - charts/**
-      - .github/workflows/chart-main.yaml
+    tags:
+      - 'v*.*.*'
 
 jobs:
   publish_github:
@@ -14,13 +11,15 @@ jobs:
     permissions:
       packages: write
     steps:
+      - name: Get version from tags
+        id: version
+        run: echo "tag=${GITHUB_REF/refs\/tags\v//}" >> $GITHUB_OUTPUT
       - name: Check out code into the Go module directory
         uses: actions/checkout@v4
-
       - uses: azure/setup-helm@v4.2.0
 
       - name: Publish helm oci image
         run: |
-          helm package charts --version 0.0.0
+          helm package charts --version ${{ steps.version.outputs.tag }} --app-version v${{ steps.version.outputs.tag }}
           echo "" | helm registry login --username $GITHUB_REPOSITORY_OWNER --password ${{ secrets.GITHUB_TOKEN }} ghcr.io
-          helm push websoaker-0.0.0.tgz oci://ghcr.io/${{ github.repository }}/websoaker-chart
+          helm push websoaker-${{ steps.version.outputs.tag }}.tgz oci://ghcr.io/${{ github.repository }}/websoaker-chart
