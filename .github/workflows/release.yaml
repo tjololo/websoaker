@@ -5,7 +5,7 @@ on:
       - 'v*.*.*'
 
 env:
-  ko_version: 0.17.1
+  ko_version: 0.19.1
 
 jobs:
   publish_github:

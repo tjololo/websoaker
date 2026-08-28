@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/tjololo/websoaker/internal/server"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
+
+	"github.com/tjololo/websoaker/internal/server"
 )
 
 type SinkServer struct {
@@ -15,29 +16,29 @@ type SinkServer struct {
 
 func (s *SinkServer) StartSinkServer(port string) {
 	s.reqCount = 0
-	log.Println("Starting sink server")
+	slog.Info("Starting sink server")
 	http.HandleFunc("/ping", s.pingHandler)
 	http.HandleFunc("/status", s.statusHandler)
 	server.ServeGraceful(port)
 }
 
 func (s *SinkServer) pingHandler(w http.ResponseWriter, _ *http.Request) {
-	log.Println("Ping received")
+	slog.Debug("Ping received")
 	s.IncCounter()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("{\"status\": \"ok\"}"))
 	if err != nil {
-		log.Printf("Failed to write response %v", err)
+		slog.Warn("Failed to write response", "error", err)
 	}
 }
 
-func (s *SinkServer) statusHandler(w http.ResponseWriter, r *http.Request) {
+func (s *SinkServer) statusHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte(fmt.Sprintf("{\"reqCount\": \"%.0f\"}", s.reqCount)))
 	if err != nil {
-		log.Printf("Failed to write response %v", err)
+		slog.Warn("Failed to write response", "error", err)
 	}
 }
 
