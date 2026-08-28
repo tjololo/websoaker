@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,9 +18,10 @@ func ServeGraceful(port string) {
 
 	go func() {
 		if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("HTTP server error: %v", err)
+			slog.Error("HTTP server error", "error", err)
+			os.Exit(1)
 		}
-		log.Println("Stopped serving new connections.")
+		slog.Info("Stopped serving new connections.")
 	}()
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -30,7 +31,7 @@ func ServeGraceful(port string) {
 	defer shutdownRelease()
 
 	if err := server.Shutdown(shutdownContext); err != nil {
-		log.Fatalf("HTTP server shutdown error: %v", err)
+		slog.Warn("HTTP server shutdown error", "error", err)
 	}
-	log.Println("HTTP server shutdown.")
+	slog.Info("Stopped serving new connections.")
 }

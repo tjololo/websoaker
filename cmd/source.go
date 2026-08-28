@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/tjololo/websoaker/internal/server"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/tjololo/websoaker/internal/server"
 )
 
 type SourceServer struct {
@@ -34,7 +35,7 @@ func NewSourceServer(soakHost string, basePath string, concurrency int, maxCons 
 }
 
 func (s *SourceServer) StartSourceServer(port string) {
-	log.Printf("Starting source server listening on port %s with %d concurrent", port, s.concurrency)
+	slog.Info("Starting source server", "port", port, "concurrency", s.concurrency)
 	http.HandleFunc("/start", s.startHandler)
 	http.HandleFunc("/stop", s.stopHandler)
 	http.HandleFunc("/status", s.statusHandler)
@@ -46,10 +47,11 @@ func (s *SourceServer) startHandler(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusConflict)
 		_, err := w.Write([]byte("{\"status\": \"Server already running\"}"))
 		if err != nil {
-			log.Printf("Failed to write response %v", err)
+			slog.Warn("Failed to write response", "error", err)
 		}
 		return
 	}
+	slog.Info("Start request received", "soakHost", s.soakHost, "concurrency", s.concurrency)
 	s.running = true
 	transport := &http.Transport{
 		MaxConnsPerHost:     s.maxCons,
@@ -64,7 +66,7 @@ func (s *SourceServer) startHandler(w http.ResponseWriter, _ *http.Request) {
 			select {
 			case <-s.notifyChan:
 				s.running = false
-				log.Println("Stop notification received")
+				slog.Info("Stop notification received")
 				return
 			default:
 				guard := make(chan struct{}, s.concurrency)
@@ -73,18 +75,18 @@ func (s *SourceServer) startHandler(w http.ResponseWriter, _ *http.Request) {
 					wg.Add(1)
 					guard <- struct{}{}
 					go func(n int) {
-						resp, err := client.Get(fmt.Sprintf("%s/%s/ping", s.soakHost, s.basePath))
+						resp, err := client.Get(fmt.Sprintf("%s%s/ping", s.soakHost, s.basePath))
 						if err != nil {
-							log.Printf("Error making request: %s", err)
+							slog.Error("Error making request", "error", err)
 							s.incFailed()
 						} else {
 							_, httpErr := io.Copy(io.Discard, resp.Body)
 							if httpErr != nil {
-								log.Printf("Error reading response body: %s", httpErr)
+								slog.Warn("Error reading response body", "error", httpErr)
 							}
 							httpErr = resp.Body.Close()
 							if httpErr != nil {
-								log.Printf("Error closing response body: %s", httpErr)
+								slog.Warn("Error closing response body", "error", httpErr)
 							}
 							s.incSuccess()
 						}
@@ -100,7 +102,7 @@ func (s *SourceServer) startHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("{\"status\": \"ok\"}"))
 	if err != nil {
-		log.Printf("Failed to write response %v", err)
+		slog.Warn("Failed to write response", "error", err)
 	}
 }
 
@@ -110,7 +112,7 @@ func (s *SourceServer) stopHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("{\"status\": \"ok\"}"))
 	if err != nil {
-		log.Printf("Failed to write response %v", err)
+		slog.Warn("Failed to write response", "error", err)
 	}
 }
 
@@ -119,7 +121,7 @@ func (s *SourceServer) statusHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte(fmt.Sprintf("{\"successCount\": \"%.0f\", \"failedCount\": \"%.0f\"}", s.successCount, s.failedCount)))
 	if err != nil {
-		log.Printf("Failed to write response %v", err)
+		slog.Warn("Failed to write response", "error", err)
 	}
 }
 
